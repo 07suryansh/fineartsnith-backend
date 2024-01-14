@@ -3,6 +3,13 @@ const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 require('dotenv').config();
+const cloudinary = require('cloudinary').v2;
+          
+cloudinary.config({ 
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 const app = express();
 const PORT = 3000;
@@ -48,15 +55,17 @@ app.get("/", async (req, res) => {
 // POST request to add a new user
 app.post("/", async (req, res) => {
   const { name, imageUrl, keyword } = req.body;
-
-  if (!name || !imageUrl || !keyword) {
-    return res
-      .status(400)
-      .json({ error: "Name and imageUrl are required fields" });
+  if (!name || !keyword) {
+    return res.status(400).json({ error: "Name and keyword are required fields" });
   }
 
   try {
-    const newUser = new User({ name, imageUrl, keyword });
+    let cloudinaryUrl = imageUrl;
+    if (!imageUrl.includes('cloudinary.com')) {
+      const cloudinaryResponse = await cloudinary.uploader.upload(imageUrl);
+      cloudinaryUrl = cloudinaryResponse.secure_url;
+    }
+    const newUser = new User({ name, imageUrl: cloudinaryUrl, keyword });
     await newUser.save();
     res.status(201).json(newUser);
   } catch (err) {
